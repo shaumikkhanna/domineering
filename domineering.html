@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<title>Domineering</title>
+		<link rel="stylesheet" href="styles.css" />
+	</head>
+	<body>
+		<h1>Domineering</h1>
+		<div id="menu">
+			<p>Select board size (between 3 and 10):</p>
+			<input
+				type="number"
+				id="boardSizeInput"
+				min="3"
+				max="10"
+				value="8"
+			/>
+			<br /><br />
+			<button onclick="chooseSide()">Single Player</button>
+			<button onclick="startGame('multi')">Pass and Play</button>
+		</div>
+
+		<div id="sideChoice" style="display: none">
+			<p>Choose your side:</p>
+			<button onclick="startGame('single', 'Vertical')">Vertical</button>
+			<button onclick="startGame('single', 'Horizontal')">
+				Horizontal
+			</button>
+		</div>
+
+		<div id="game" style="display: none">
+			<button id="homeBtn" onclick="goHome()">Home 🏠</button>
+			<p>Current Player: <span id="playerDisplay">Vertical</span></p>
+
+			<div class="board-wrapper">
+				<div class="domino-panel left-panel">
+					<div class="player-name domino-label-left">Lata</div>
+					<div class="domino vertical-domino"></div>
+					<div
+						id="verticalCount"
+						class="domino-count domino-label-left"
+					>
+						16
+					</div>
+				</div>
+
+				<div id="board" class="board"></div>
+
+				<div class="domino-panel right-panel">
+					<div class="player-name domino-label-right">Raj</div>
+					<div class="domino horizontal-domino"></div>
+					<div
+						id="horizontalCount"
+						class="domino-count domino-label-right"
+					>
+						16
+					</div>
+				</div>
+			</div>
+
+			<p id="aiThinking" style="display: none">CPU Thinking...</p>
+			<p id="status" class="status"></p>
+		</div>
+
+		<script src="script.js"></script>
+	</body>
+</html>
