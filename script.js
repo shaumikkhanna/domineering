@@ -190,6 +190,17 @@ function makeAIMove() {
 			-Infinity,
 			Infinity
 		);
+
+		console.log(
+			"AI is",
+			isAIVertical ? "Vertical (Lata)" : "Horizontal (Raj)"
+		);
+		console.log("Best move from minimax:", bestMove);
+		console.log(
+			"Available moves for AI directly:",
+			generateMoves(grid, isAIVertical ? "Vertical" : "Horizontal")
+		);
+
 		document.getElementById("aiThinking").style.display = "none";
 
 		if (bestMove) {
@@ -227,7 +238,7 @@ function makeAIMove() {
 }
 
 function minimax(state, depth, isVertical, alpha, beta) {
-	if (depth === 0 || isTerminal(state)) {
+	if (depth === 0 || isTerminal(state, isVertical)) {
 		return [null, evaluate(state, isVertical)];
 	}
 
@@ -292,29 +303,23 @@ function generateMoves(state, player) {
 	return moves;
 }
 
-function isTerminal(state) {
-	return (
-		generateMoves(state, "Vertical").length === 0 ||
-		generateMoves(state, "Horizontal").length === 0
-	);
+function isTerminal(state, isVertical) {
+	const player = isVertical ? "Vertical" : "Horizontal";
+	return generateMoves(state, player).length === 0;
 }
 
 function evaluate(state, aiIsVertical) {
-	const aiMoves = generateMoves(
-		state,
-		aiIsVertical ? "Vertical" : "Horizontal"
-	).length;
-	const humanMoves = generateMoves(
-		state,
-		aiIsVertical ? "Horizontal" : "Vertical"
-	).length;
+	const aiPlayer = aiIsVertical ? "Vertical" : "Horizontal";
+	const humanPlayer = aiIsVertical ? "Horizontal" : "Vertical";
 
-	// You can experiment with scoring here
-	if (aiMoves === 0 && humanMoves === 0) return 0;
-	if (aiMoves === 0) return -1000;
-	if (humanMoves === 0) return 1000;
+	const aiMoves = generateMoves(state, aiPlayer).length;
+	const humanMoves = generateMoves(state, humanPlayer).length;
 
-	return aiMoves - humanMoves;
+	if (humanMoves === 0) return 1000; // AI wins
+	if (aiMoves === 0) return -1000; // AI loses
+
+	// Heuristic: more moves = more flexibility
+	return humanMoves * -10 + aiMoves * 10;
 }
 
 function countAvailableMoves(player) {
