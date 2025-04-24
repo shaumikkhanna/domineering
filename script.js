@@ -1,6 +1,7 @@
 let boardSize = 8;
 let verticalCount = 0;
 let horizontalCount = 0;
+let aiMode = "minimax"; // or "minimax"
 const board = document.getElementById("board");
 const playerDisplay = document.getElementById("playerDisplay");
 const status = document.getElementById("status");
@@ -183,23 +184,20 @@ function makeAIMove() {
 	document.getElementById("aiThinking").style.display = "block";
 	setTimeout(() => {
 		const isAIVertical = playerSide === "Horizontal";
-		const [bestMove] = minimax(
-			grid.slice(),
-			6, // Depth of minimax
-			isAIVertical,
-			-Infinity,
-			Infinity
-		);
 
-		console.log(
-			"AI is",
-			isAIVertical ? "Vertical (Lata)" : "Horizontal (Raj)"
-		);
-		console.log("Best move from minimax:", bestMove);
-		console.log(
-			"Available moves for AI directly:",
-			generateMoves(grid, isAIVertical ? "Vertical" : "Horizontal")
-		);
+		const bestMove =
+			aiMode === "greedy"
+				? pickGreedySmartMove(grid, isAIVertical)
+				: minimax(
+						grid.slice(),
+						6,
+						isAIVertical,
+						-Infinity,
+						Infinity,
+						isAIVertical
+				  )[0];
+
+		console.log("AI chose:", bestMove);
 
 		document.getElementById("aiThinking").style.display = "none";
 
@@ -219,7 +217,6 @@ function makeAIMove() {
 					horizontalCount;
 			}
 
-			//  Check if the human has any moves BEFORE switching turn
 			const opponent =
 				currentPlayer === "Vertical" ? "Horizontal" : "Vertical";
 			if (!hasMoves(opponent)) {
@@ -230,16 +227,15 @@ function makeAIMove() {
 
 			switchTurn();
 		} else {
-			// ❗ AI has no moves, so human wins
 			currentPlayer = isAIVertical ? "Vertical" : "Horizontal";
 			checkGameOver();
 		}
 	}, 50);
 }
 
-function minimax(state, depth, isVertical, alpha, beta) {
+function minimax(state, depth, isVertical, alpha, beta, aiIsVertical) {
 	if (depth === 0 || isTerminal(state, isVertical)) {
-		return [null, evaluate(state, isVertical)];
+		return [null, evaluate(state, aiIsVertical)];
 	}
 
 	let bestMove = null;
@@ -252,7 +248,26 @@ function minimax(state, depth, isVertical, alpha, beta) {
 		state[i1] = "temp";
 		state[i2] = "temp";
 
-		const [, score] = minimax(state, depth - 1, !isVertical, alpha, beta);
+		// Check if opponent has NO moves right now
+		const opponentMoves = generateMoves(
+			state,
+			!isVertical ? "Vertical" : "Horizontal"
+		);
+		if (opponentMoves.length === 0) {
+			// this move guarantees a win — no need to search deeper
+			state[i1] = null;
+			state[i2] = null;
+			return [move, 1000];
+		}
+
+		const [, score] = minimax(
+			state,
+			depth - 1,
+			!isVertical,
+			alpha,
+			beta,
+			aiIsVertical
+		);
 
 		state[i1] = null;
 		state[i2] = null;
@@ -275,6 +290,76 @@ function minimax(state, depth, isVertical, alpha, beta) {
 	}
 
 	return [bestMove, bestScore];
+}
+
+function classifyCell(grid, index, isVertical) {
+	const row = Math.floor(index / boardSize);
+	const col = index % boardSize;
+	if (grid[index] !== null) return "none";
+
+	const canVertical =
+		row < boardSize - 1 &&
+		grid[index] === null &&
+		grid[index + boardSize] === null;
+
+	const canHorizontal =
+		col < boardSize - 1 && grid[index] === null && grid[index + 1] === null;
+
+	if (canVertical && !canHorizontal) return "vertical-only";
+	if (!canVertical && canHorizontal) return "horizontal-only";
+	if (canVertical && canHorizontal) return "neutral";
+	return "none";
+}
+
+function pickGreedySmartMove(grid, isVertical) {
+	const moves = generateMoves(grid, isVertical ? "Vertical" : "Horizontal");
+
+	// Check for forced win first
+	for (const move of moves) {
+		const [i1, i2] = move;
+		const tempGrid = grid.slice();
+		tempGrid[i1] = "temp";
+		tempGrid[i2] = "temp";
+
+		const opponent = isVertical ? "Horizontal" : "Vertical";
+		if (generateMoves(tempGrid, opponent).length === 0) {
+			console.log("FORCED WIN FOUND!", move);
+			return move;
+		}
+	}
+
+	// No instant win, use greedy scoring
+	let bestMove = null;
+	let bestScore = -Infinity;
+
+	for (const move of moves) {
+		const [i1, i2] = move;
+		let score = 0;
+
+		for (const idx of [i1, i2]) {
+			const kind = classifyCell(grid, idx, isVertical);
+			if (
+				(isVertical && kind === "vertical-only") ||
+				(!isVertical && kind === "horizontal-only")
+			) {
+				score -= 5; // your own safe zone
+			} else if (
+				(isVertical && kind === "horizontal-only") ||
+				(!isVertical && kind === "vertical-only")
+			) {
+				score += 1; // opponent-only zone
+			} else if (kind === "neutral") {
+				score += 3;
+			}
+		}
+
+		if (score > bestScore) {
+			bestScore = score;
+			bestMove = move;
+		}
+	}
+
+	return bestMove;
 }
 
 function generateMoves(state, player) {
@@ -309,17 +394,33 @@ function isTerminal(state, isVertical) {
 }
 
 function evaluate(state, aiIsVertical) {
-	const aiPlayer = aiIsVertical ? "Vertical" : "Horizontal";
-	const humanPlayer = aiIsVertical ? "Horizontal" : "Vertical";
+	const moves = generateMoves(
+		state,
+		aiIsVertical ? "Vertical" : "Horizontal"
+	);
 
-	const aiMoves = generateMoves(state, aiPlayer).length;
-	const humanMoves = generateMoves(state, humanPlayer).length;
+	let score = 0;
 
-	if (humanMoves === 0) return 1000; // AI wins
-	if (aiMoves === 0) return -1000; // AI loses
+	for (const move of moves) {
+		for (const idx of move) {
+			const kind = classifyCell(state, idx, aiIsVertical);
+			if (
+				(aiIsVertical && kind === "vertical-only") ||
+				(!aiIsVertical && kind === "horizontal-only")
+			) {
+				score -= 5;
+			} else if (
+				(aiIsVertical && kind === "horizontal-only") ||
+				(!aiIsVertical && kind === "vertical-only")
+			) {
+				score += 1;
+			} else if (kind === "neutral") {
+				score += 3;
+			}
+		}
+	}
 
-	// Heuristic: more moves = more flexibility
-	return humanMoves * -10 + aiMoves * 10;
+	return score;
 }
 
 function countAvailableMoves(player) {
